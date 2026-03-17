@@ -37,6 +37,10 @@ project-root/
 └── SETUP.md
 ```
 
+## Documentation
+
+Full project documentation — including algorithm explanations, complete API reference, data type definitions, and a step-by-step usage guide — is available in [DOCUMENTATION.md](./DOCUMENTATION.md).
+
 ## Setup Instructions (XAMPP)
 1. Install XAMPP.
 2. Copy this project to your XAMPP `htdocs` folder.
