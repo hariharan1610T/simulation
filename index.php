@@ -33,7 +33,8 @@ function post_int(string $key, int $min = PHP_INT_MIN, int $max = PHP_INT_MAX): 
         return null;
     }
     $raw = trim((string)$_POST[$key]);
-    if (!ctype_digit(ltrim($raw, '-')) || $raw === '') {
+    /* Accept optional leading minus then only digits */
+    if (!preg_match('/^-?\d+$/', $raw) || $raw === '' || $raw === '-') {
         return null;
     }
     $val = (int)$raw;
@@ -201,7 +202,7 @@ function cpu_rr(array $procs, int $quantum): array
 
     while ($completed < $n) {
         /* Guard against infinite loop in malformed input */
-        if (++$safety > 200000) {
+        if (++$safety > MAX_RR_ITERATIONS) {
             break;
         }
 
@@ -515,6 +516,10 @@ function disk_sstf(array $requests, int $head): array
 
 define('FS_MAX_BLOCKS', 100);
 define('FS_MAX_FILES',  20);
+/* Maximum filename length (excluding null terminator) */
+define('FS_MAX_FILENAME_LEN', 29);
+/* Safety iteration limit for Round Robin to prevent infinite loops */
+define('MAX_RR_ITERATIONS', 200000);
 
 /** Initialise (or reset) the in-memory file system stored in the session. */
 function fs_init(): void
@@ -537,13 +542,13 @@ function &fs(): array
 /**
  * Create a file using sequential (contiguous) allocation.
  *
- * @param  string $name   File name (max 29 chars)
+ * @param  string $name   File name (max FS_MAX_FILENAME_LEN chars)
  * @param  int    $size   Number of blocks required
  * @return string         Result message
  */
 function fs_create(string $name, int $size): string
 {
-    $name = substr(trim($name), 0, 29);
+    $name = substr(trim($name), 0, FS_MAX_FILENAME_LEN);
     if ($name === '') {
         return 'Error: File name cannot be empty.';
     }

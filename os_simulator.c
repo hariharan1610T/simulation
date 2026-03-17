@@ -27,6 +27,9 @@
 #define MAX_FILES       20
 #define MAX_BLOCKS      100
 #define MAX_FILENAME    30
+/* Maximum queue slots for Round Robin (each process may be re-queued multiple
+ * times; 50× the process count gives a generous upper bound) */
+#define MAX_RR_QUEUE    (MAX_PROCESSES * 50)
 
 /* =====================================================================
  *  STRUCTURES
@@ -41,7 +44,6 @@ typedef struct {
     int finish;        /* Finish time */
     int waiting;       /* Waiting time */
     int turnaround;    /* Turnaround time */
-    int started;       /* Flag: has process started? */
 } Process;
 
 /* File structure for file allocation */
@@ -156,7 +158,6 @@ static int read_processes(Process procs[], int n) {
         if (procs[i].burst <= 0) { printf("  [Error] Burst time must be > 0.\n"); return 0; }
         procs[i].remaining = procs[i].burst;
         procs[i].finish = procs[i].waiting = procs[i].turnaround = 0;
-        procs[i].started = 0;
     }
     return 1;
 }
@@ -227,9 +228,9 @@ static void cpu_sjf(Process procs[], int n) {
 /* Round Robin scheduling */
 static void cpu_rr(Process procs[], int n, int quantum) {
     int i, time = 0, completed = 0;
-    int queue[MAX_PROCESSES * 50], front = 0, rear = 0;
+    int queue[MAX_RR_QUEUE], front = 0, rear = 0;
     int in_queue[MAX_PROCESSES];
-    int g_pids[MAX_PROCESSES * 50], g_start[MAX_PROCESSES * 50], g_end[MAX_PROCESSES * 50];
+    int g_pids[MAX_RR_QUEUE], g_start[MAX_RR_QUEUE], g_end[MAX_RR_QUEUE];
     int gc = 0;
 
     for (i = 0; i < n; i++) { procs[i].remaining = procs[i].burst; in_queue[i] = 0; }
