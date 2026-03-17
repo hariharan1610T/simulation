@@ -42,6 +42,7 @@ export function BankersAlgorithm() {
   const [available, setAvailable] = useState<number[]>([3, 3, 2]);
   const [result, setResult] = useState<BankerResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const updateMatrix = (
     matrix: number[][],
@@ -73,9 +74,10 @@ export function BankersAlgorithm() {
   const runSimulation = async () => {
     setIsLoading(true);
     setResult(null);
+    setError(null);
 
     try {
-      const response = await fetch("/api/bankers-algorithm", {
+      const response = await fetch("/api/bankers.php", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -87,12 +89,15 @@ export function BankersAlgorithm() {
         }),
       });
 
-      if (!response.ok) throw new Error("Simulation failed");
+      if (!response.ok) {
+        const body = await response.json();
+        throw new Error(body?.error || "Simulation failed");
+      }
 
       const data: BankerResult = await response.json();
       setResult(data);
-    } catch {
-      console.error("Simulation error");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Simulation failed");
     } finally {
       setIsLoading(false);
     }
@@ -306,6 +311,7 @@ export function BankersAlgorithm() {
                 </>
               )}
             </Button>
+            {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
           </div>
         </CardContent>
       </Card>

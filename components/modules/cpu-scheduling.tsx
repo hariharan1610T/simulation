@@ -48,6 +48,7 @@ export function CPUScheduling() {
   const [result, setResult] = useState<SchedulingResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [animatedBlocks, setAnimatedBlocks] = useState<number>(0);
+  const [error, setError] = useState<string | null>(null);
 
   const addProcess = () => {
     const newId = `P${processes.length + 1}`;
@@ -76,15 +77,19 @@ export function CPUScheduling() {
     setIsLoading(true);
     setResult(null);
     setAnimatedBlocks(0);
+    setError(null);
 
     try {
-      const response = await fetch("/api/cpu-scheduling", {
+      const response = await fetch("/api/cpu-scheduling.php", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ processes, algorithm, timeQuantum }),
       });
 
-      if (!response.ok) throw new Error("Simulation failed");
+      if (!response.ok) {
+        const body = await response.json();
+        throw new Error(body?.error || "Simulation failed");
+      }
 
       const data: SchedulingResult = await response.json();
       setResult(data);
@@ -94,8 +99,8 @@ export function CPUScheduling() {
         await new Promise((resolve) => setTimeout(resolve, 300));
         setAnimatedBlocks(i);
       }
-    } catch {
-      console.error("Simulation error");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Simulation failed");
     } finally {
       setIsLoading(false);
     }
@@ -241,6 +246,7 @@ export function CPUScheduling() {
                 )}
               </Button>
             </div>
+            {error && <p className="text-sm text-destructive">{error}</p>}
           </CardContent>
         </Card>
 

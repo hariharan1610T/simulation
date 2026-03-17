@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Spinner } from "@/components/ui/spinner";
 import {
   Table,
   TableBody,
@@ -18,7 +19,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import type { FileBlock, FileAllocationState } from "@/lib/types";
+import type { FileAllocationState } from "@/lib/types";
 import { Plus, Trash2, File, HardDrive } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -41,88 +42,65 @@ export function FileAllocation() {
   const [newFileName, setNewFileName] = useState("");
   const [newFileSize, setNewFileSize] = useState(3);
   const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const updateTotalBlocks = (size: number) => {
-    setTotalBlocks(size);
-    setState({
-      files: [],
-      diskBlocks: Array(size).fill(null),
-      totalBlocks: size,
+  const callApi = async (payload: Record<string, unknown>) => {
+    const response = await fetch("/api/file-allocation.php", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
     });
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data?.error || "Operation failed");
+    }
+    return data as { state: FileAllocationState };
   };
 
-  const findContiguousSpace = (size: number): number | null => {
-    let consecutive = 0;
-    let startBlock = -1;
-
-    for (let i = 0; i < state.diskBlocks.length; i++) {
-      if (state.diskBlocks[i] === null) {
-        if (consecutive === 0) startBlock = i;
-        consecutive++;
-        if (consecutive >= size) return startBlock;
-      } else {
-        consecutive = 0;
-        startBlock = -1;
-      }
-    }
-
-    return null;
-  };
-
-  const createFile = () => {
-    if (!newFileName.trim()) {
-      setError("Please enter a file name");
-      return;
-    }
-
-    if (state.files.some((f) => f.name === newFileName.trim())) {
-      setError("File name already exists");
-      return;
-    }
-
-    const startBlock = findContiguousSpace(newFileSize);
-    if (startBlock === null) {
-      setError(`Not enough contiguous space for ${newFileSize} blocks`);
-      return;
-    }
-
-    const fileId = `file-${Date.now()}`;
-    const blocks: number[] = [];
-    const newDiskBlocks = [...state.diskBlocks];
-
-    for (let i = 0; i < newFileSize; i++) {
-      blocks.push(startBlock + i);
-      newDiskBlocks[startBlock + i] = fileId;
-    }
-
-    const newFile: FileBlock = {
-      id: fileId,
-      name: newFileName.trim(),
-      startBlock,
-      length: newFileSize,
-      blocks,
-    };
-
-    setState({
-      ...state,
-      files: [...state.files, newFile],
-      diskBlocks: newDiskBlocks,
-    });
-
-    setNewFileName("");
+  const updateTotalBlocks = async (size: number) => {
+    setIsLoading(true);
     setError(null);
+    try {
+      const data = await callApi({ action: "initialize", totalBlocks: size });
+      setTotalBlocks(size);
+      setState(data.state);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Operation failed");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const deleteFile = (fileId: string) => {
-    const newDiskBlocks = state.diskBlocks.map((block) =>
-      block === fileId ? null : block
-    );
+  const createFile = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const data = await callApi({
+        action: "create",
+        state,
+        fileName: newFileName.trim(),
+        fileSize: newFileSize,
+      });
+      setState(data.state);
+      setNewFileName("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Operation failed");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-    setState({
-      ...state,
-      files: state.files.filter((f) => f.id !== fileId),
-      diskBlocks: newDiskBlocks,
-    });
+  const deleteFile = async (fileId: string) => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const data = await callApi({ action: "delete", state, fileId });
+      setState(data.state);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Operation failed");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const getFileColor = (fileId: string) => {
@@ -160,12 +138,12 @@ export function FileAllocation() {
                 type="number"
                 min={5}
                 max={50}
-                value={totalBlocks}
-                onChange={(e) =>
-                  updateTotalBlocks(parseInt(e.target.value) || 20)
-                }
-              />
-            </div>
+                  value={totalBlocks}
+                  onChange={(e) =>
+                    void updateTotalBlocks(parseInt(e.target.value) || 20)
+                  }
+                />
+              </div>
 
             <div className="space-y-4 border-t pt-4">
               <h4 className="font-medium">Create New File</h4>
@@ -194,13 +172,20 @@ export function FileAllocation() {
                 />
               </div>
 
-              {error && (
-                <p className="text-sm text-destructive">{error}</p>
-              )}
+              {error && <p className="text-sm text-destructive">{error}</p>}
 
-              <Button onClick={createFile} className="w-full">
-                <Plus className="h-4 w-4" />
-                Create File
+              <Button onClick={createFile} disabled={isLoading} className="w-full">
+                {isLoading ? (
+                  <>
+                    <Spinner size="sm" />
+                    Processing...
+                  </>
+                ) : (
+                  <>
+                    <Plus className="h-4 w-4" />
+                    Create File
+                  </>
+                )}
               </Button>
             </div>
           </CardContent>
@@ -354,7 +339,8 @@ export function FileAllocation() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => deleteFile(file.id)}
+                          onClick={() => void deleteFile(file.id)}
+                          disabled={isLoading}
                         >
                           <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
