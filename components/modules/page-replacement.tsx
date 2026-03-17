@@ -22,10 +22,12 @@ export function PageReplacement() {
   const [algorithm, setAlgorithm] = useState<"FIFO" | "LRU">("FIFO");
   const [result, setResult] = useState<PageReplacementResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const runSimulation = async () => {
     setIsLoading(true);
     setResult(null);
+    setError(null);
 
     try {
       const pages = pageString
@@ -33,7 +35,7 @@ export function PageReplacement() {
         .map((s) => parseInt(s.trim()))
         .filter((n) => !isNaN(n));
 
-      const response = await fetch("/api/page-replacement", {
+      const response = await fetch("/api/page-replacement.php", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -43,12 +45,15 @@ export function PageReplacement() {
         }),
       });
 
-      if (!response.ok) throw new Error("Simulation failed");
+      if (!response.ok) {
+        const body = await response.json();
+        throw new Error(body?.error || "Simulation failed");
+      }
 
       const data: PageReplacementResult = await response.json();
       setResult(data);
-    } catch {
-      console.error("Simulation error");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Simulation failed");
     } finally {
       setIsLoading(false);
     }
@@ -131,6 +136,7 @@ export function PageReplacement() {
                 </>
               )}
             </Button>
+            {error && <p className="text-sm text-destructive">{error}</p>}
           </CardContent>
         </Card>
 
