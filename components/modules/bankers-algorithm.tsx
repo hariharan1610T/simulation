@@ -77,7 +77,7 @@ export function BankersAlgorithm() {
     setError(null);
 
     try {
-      const response = await fetch("/api/bankers.php", {
+      const response = await fetch("/api/bankers-algorithm", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

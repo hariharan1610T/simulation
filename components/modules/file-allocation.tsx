@@ -45,7 +45,7 @@ export function FileAllocation() {
   const [isLoading, setIsLoading] = useState(false);
 
   const callApi = async (payload: Record<string, unknown>) => {
-    const response = await fetch("/api/file-allocation.php", {
+    const response = await fetch("/api/file-allocation", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),

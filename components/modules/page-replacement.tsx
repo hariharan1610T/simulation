@@ -35,7 +35,7 @@ export function PageReplacement() {
         .map((s) => parseInt(s.trim()))
         .filter((n) => !isNaN(n));
 
-      const response = await fetch("/api/page-replacement.php", {
+      const response = await fetch("/api/page-replacement", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

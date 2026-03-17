@@ -38,7 +38,7 @@ export function DiskScheduling() {
         .map((s) => parseInt(s.trim()))
         .filter((n) => !isNaN(n));
 
-      const response = await fetch("/api/disk-scheduling.php", {
+      const response = await fetch("/api/disk-scheduling", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

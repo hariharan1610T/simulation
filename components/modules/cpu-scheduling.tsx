@@ -80,7 +80,7 @@ export function CPUScheduling() {
     setError(null);
 
     try {
-      const response = await fetch("/api/cpu-scheduling.php", {
+      const response = await fetch("/api/cpu-scheduling", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ processes, algorithm, timeQuantum }),
